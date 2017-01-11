@@ -1,4 +1,4 @@
 "# RealtimeChat-Go" 
 
-- Run browserify **app.js -t babelify --outfile bundle.js** for es2015 conversion
+- Run webpack **webpack-dev-server** for es2015 conversion and auto-reloading
 - Run **serve** to serve files locally
