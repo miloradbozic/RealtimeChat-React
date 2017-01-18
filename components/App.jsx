@@ -2,6 +2,7 @@ import React, {Component} from 'react';
 import ChannelSection from './channels/ChannelSection.jsx'
 import UserSection from './users/UserSection.jsx'
 import MessageSection from './messages/MessageSection.jsx'
+import Socket from '../socket.js'
 
 class App extends Component {
 
@@ -10,68 +11,110 @@ class App extends Component {
         this.state = {
             channels : [],
             activeChannel: {},
-            users: [
-                {id :0, username: "popara"},
-                {id :1, username: "john_lennon"}
-            ],
+            users: [],
             loggedUser : {id: 33, username: "milorad_bozic"},
-            messages : [
-                {
-                    id :0,
-                    author: 'milorad_bozic',
-                    body: "Hello Friends, how are you tonight?",
-                    createdAt: new Date()
-
-                },
-                {
-                    id :1,
-                    author: 'john_lennon',
-                    body: "Hello to you too, motherfucker!?",
-                    createdAt: new Date()
-
-                }
-            ]
+            messages : [],
+            connected : false
         }
     }
     
-    addChannel(name) {
+    componentDidMount() {
+        let socket = this.socket = new Socket();
+        socket.on('connect', this.onConnect.bind(this));
+        socket.on('disconnect', this.onDisconnect.bind(this));
+        socket.on('channel add', this.onAddChannel.bind(this));
+        socket.on('user add', this.onAddUser.bind(this));
+        socket.on('user edit', this.onEditUser.bind(this));
+        socket.on('user remove', this.onRemoveUser.bind(this));
+        socket.on('message add', this.onAddMessage.bind(this));
+    }
+
+    onConnect() {
+        console.log("Connected to server through socket.");
+        this.state.connected = true;
+    }
+    
+    onDisconnect() {
+        console.log("Disconnected from server through socket.");
+        this.state.connected = false;
+    }
+
+    onAddChannel(channel) {
+        console.log("Add channel called from ws.");
         let {channels} = this.state;
-        channels.push({id: channels.length, name});
+        channels.push(channel);
         this.setState({channels});
-        //TODO: send to server
+        
+    }
+
+    addChannel(name) {
+        console.log("Adding new channel.");
+        this.socket.emit('channel add', {id: this.state.channels.length, name});
     }
 
     setChannel(activeChannel) {
         this.setState({activeChannel});
-        //TODO: Get channels messages from server
     }
 
     addUser(username) {
+        this.socket.emit('user add', {id: this.state.users.length, username: username});
+    }
+
+    onAddUser(user) {
+        console.log("On addd user called from ws");
         let {users} = this.state;
-        users.push({id: users.length, username});
+        users.push(user);
         this.setState({users});
-        //TODO: save on server
     }
     
-    addMessage(messageBody) {
+    onEditUser(editUser) {
+        let {users} = this.state;
+        users = users.map(user => {
+            if (editUser.id === user.id) {
+                return editUser;
+            }
+            return user;
+        });
+        this.setState(users);
+    }
+
+    onRemoveUser(removeUser) {
+        let {users} = this.state;
+        users = users.filter(user => {
+            return removeUser.id !== user.id;
+        });
+        this.setState(users);
+    }
+
+    setUsername(username) {
+        this.socket.emit('user edit', {username});
+    }
+
+    onAddMessage(message) {
         let {messages} = this.state;
+        messages.push(message);
+        this.setState({messages});
+    }
+
+    addMessage(body) {
         const createdAt = new Date;
         const author = this.state.loggedUser.username;
-        messages.push({
+        let message = {
             id: messages.length,
+            channelId: this.state.activeChannel.id,
             author: author,
             body: messageBody,
             createdAt: createdAt
-        });
-        this.setState({messages});
-        //TODO: save to server
+        };
+
+        this.socket.emit('message add', {message});
     }
 
     render() {
-
-
         let messageSection;
+        
         if (this.state.activeChannel.id !== undefined) {
+            console.log("Setting mewssage section");
             messageSection = (
                 <MessageSection
                     {...this.state}
@@ -79,6 +122,8 @@ class App extends Component {
                 />
             );
         }
+
+        console.log("active channel is", this.state.activeChannel, this.state.activeChannel.id, this.state.activeChannel.id !== undefined);
 
         return (
             <div className="app">
