@@ -30,13 +30,13 @@ class App extends Component {
     }
 
     onConnect() {
-        console.log("Connected to server through socket.");
-        this.state.connected = true;
+        this.setState({connected : true});
+        this.socket.emit('channel subscribe');
+        this.socket.emit('user subscribe');
     }
     
     onDisconnect() {
-        console.log("Disconnected from server through socket.");
-        this.state.connected = false;
+        this.setState({connected : false});
     }
 
     onAddChannel(channel) {
@@ -44,7 +44,6 @@ class App extends Component {
         let {channels} = this.state;
         channels.push(channel);
         this.setState({channels});
-        
     }
 
     addChannel(name) {
@@ -54,6 +53,9 @@ class App extends Component {
 
     setChannel(activeChannel) {
         this.setState({activeChannel});
+        this.socket.emit('message unsubscribe');
+        this.setState({messages: []});
+        this.socket.emit('message subscribe', {channelId: activeChannel.id});
     }
 
     addUser(username) {
@@ -91,23 +93,27 @@ class App extends Component {
     }
 
     onAddMessage(message) {
+
         let {messages} = this.state;
         messages.push(message);
         this.setState({messages});
     }
 
     addMessage(body) {
-        const createdAt = new Date;
-        const author = this.state.loggedUser.username;
+        let createdAt = new Date;
+        let author = this.state.loggedUser.username;
+        let {activeChannel} = this.state;
+        let {messages} = this.state;
+
         let message = {
             id: messages.length,
-            channelId: this.state.activeChannel.id,
+            channelId: activeChannel.id,
             author: author,
-            body: messageBody,
+            body: body,
             createdAt: createdAt
         };
 
-        this.socket.emit('message add', {message});
+        this.socket.emit('message add', message);
     }
 
     render() {
